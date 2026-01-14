@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSO con Microsoft Entra ID - Esempio Realistico</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f3f2f1;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #0078d4;
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .screen {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 40px;
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            padding: 0 20px;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .step::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background: #e1dfdd;
+            z-index: -1;
+        }
+
+        .step:last-child::before {
+            display: none;
+        }
+
+        .step-circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e1dfdd;
+            color: #605e5c;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .step.completed .step-circle {
+            background: #0078d4;
+            color: white;
+        }
+
+        .step.active .step-circle {
+            background: #0078d4;
+            color: white;
+            box-shadow: 0 0 0 4px rgba(0,120,212,0.2);
+        }
+
+        .step-label {
+            font-size: 12px;
+            color: #605e5c;
+        }
+
+        /* App iniziale */
+        .app-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .app-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 36px;
+        }
+
+        .app-name {
+            font-size: 28px;
+            color: #323130;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            display: block;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-microsoft {
+            background: white;
+            color: #5e5e5e;
+            border: 1px solid #8c8c8c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .btn-microsoft:hover {
+            background: #f3f2f1;
+        }
+
+        .ms-logo {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(to right, #f65314 0%, #f65314 50%, #7cbb00 50%, #7cbb00 100%),
+                        linear-gradient(to right, #00a1f1 0%, #00a1f1 50%, #ffbb00 50%, #ffbb00 100%);
+            background-size: 100% 50%;
+            background-position: 0 0, 0 100%;
+            background-repeat: no-repeat;
+        }
+
+        /* Microsoft Login */
+        .ms-login {
+            max-width: 440px;
+            margin: 0 auto;
+        }
+
+        .ms-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .ms-logo-large {
+            width: 108px;
+            height: 24px;
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDgiIGhlaWdodD0iMjQiPjxyZWN0IGZpbGw9IiNmMjUwMjIiIHdpZHRoPSIxMC40IiBoZWlnaHQ9IjEwLjQiLz48cmVjdCBmaWxsPSIjN2ZiYTAwIiB4PSIxMS40IiB3aWR0aD0iMTAuNCIgaGVpZ2h0PSIxMC40Ii8+PHJlY3QgZmlsbD0iIzAwYTRlZiIgeT0iMTEuNCIgd2lkdGg9IjEwLjQiIGhlaWdodD0iMTAuNCIvPjxyZWN0IGZpbGw9IiNmZmI5MDAiIHg9IjExLjQiIHk9IjExLjQiIHdpZHRoPSIxMC40IiBoZWlnaHQ9IjEwLjQiLz48L3N2Zz4=');
+            background-size: contain;
+            background-repeat: no-repeat;
+            margin: 0 auto 20px;
+        }
+
+        .ms-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1b1a19;
+            margin-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #323130;
+            font-size: 13px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #8a8886;
+            border-radius: 2px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #0078d4;
+        }
+
+        .btn-primary {
+            background: #0078d4;
+            color: white;
+            margin-top: 20px;
+        }
+
+        .btn-primary:hover {
+            background: #106ebe;
+        }
+
+        .info-box {
+            background: #f3f2f1;
+            border-left: 3px solid #0078d4;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 2px;
+        }
+
+        .info-box h4 {
+            color: #323130;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-box p {
+            color: #605e5c;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .code-container {
+            background: #1e1e1e;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .code-header {
+            color: #858585;
+            font-size: 12px;
+            margin-bottom: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .code-content {
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .function { color: #dcdcaa; }
+        .property { color: #9cdcfe; }
+
+        .token-display {
+            background: #fffbf0;
+            border: 1px solid #ffd700;
+            padding: 16px;
+            border-radius: 4px;
+            margin: 20px 0;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .dashboard {
+            padding: 0;
+        }
+
+        .dashboard-header {
+            background: #0078d4;
+            color: white;
+            padding: 20px 40px;
+            margin: -40px -40px 30px -40px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: white;
+            color: #0078d4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 0 40px 40px 40px;
+        }
+
+        .app-card {
+            background: #faf9f8;
+            border: 1px solid #edebe9;
+            border-radius: 4px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .app-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .app-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .app-card h3 {
+            color: #323130;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .app-card p {
+            color: #605e5c;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .tech-details {
+            margin-top: 30px;
+            padding: 0 40px 20px 40px;
+        }
+
+        .tech-section {
+            margin-bottom: 30px;
+        }
+
+        .tech-section h3 {
+            color: #323130;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .flow-step {
+            background: #f3f2f1;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+            border-left: 4px solid #0078d4;
+        }
+
+        .flow-step strong {
+            color: #0078d4;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .flow-step code {
+            background: #e1dfdd;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 SSO con Microsoft Entra ID - Flusso Realistico</h1>
+    </div>
+
+    <div class="container">
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step1">
+                <div class="step-circle">1</div>
+                <div class="step-label">App Aziendale</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Microsoft Login</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Callback</div>
+            </div>
+            <div class="step" id="step4">
+                <div class="step-circle">4</div>
+                <div class="step-label">Accesso Completo</div>
+            </div>
+        </div>
+
+        <!-- Screen 1: App Login -->
+        <div id="screen1" class="screen active">
+            <div class="app-header">
+                <div class="app-logo">🏢</div>
+                <h2 class="app-name">Portal Aziendale Acme Corp</h2>
+                <p style="color: #605e5c;">Accedi con il tuo account Microsoft 365</p>
+            </div>
+
+            <button class="btn btn-microsoft" onclick="initiateSSO()">
+                <div class="ms-logo"></div>
+                Accedi con Microsoft
+            </button>
+
+            <div class="info-box" style="margin-top: 40px;">
+                <h4>📋 Cosa succede quando clicchi?</h4>
+                <p>L'applicazione costruirà un URL di autorizzazione OAuth 2.0 verso Microsoft Entra ID con questi parametri:</p>
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">// Configurazione OAuth 2.0</div>
+                <div class="code-content">
+<span class="keyword">const</span> authConfig = {
+  <span class="property">tenant</span>: <span class="string">'acmecorp.onmicrosoft.com'</span>,
+  <span class="property">clientId</span>: <span class="string">'a1b2c3d4-e5f6-7890-abcd-ef1234567890'</span>,
+  <span class="property">redirectUri</span>: <span class="string">'https://portal.acmecorp.com/auth/callback'</span>,
+  <span class="property">scope</span>: <span class="string">'openid profile email'</span>
+};
+
+<span class="comment">// URL di autorizzazione Microsoft</span>
+<span class="keyword">const</span> authUrl = 
+  <span class="string">`https://login.microsoftonline.com/${authConfig.tenant}/oauth2/v2.0/authorize?
+  client_id=${authConfig.clientId}&
+  response_type=code&
+  redirect_uri=${authConfig.redirectUri}&
+  scope=${authConfig.scope}&
+  state=abc123xyz`</span>;
+
+<span class="comment">// Reindirizzamento</span>
+window.<span class="function">location</span>.<span class="property">href</span> = authUrl;
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: Microsoft Login -->
+        <div id="screen2" class="screen">
+            <div class="ms-login">
+                <div class="ms-header">
+                    <div class="ms-logo-large"></div>
+                    <h2 class="ms-title">Accedi</h2>
+                </div>
+
+                <div class="info-box">
+                    <h4>🌐 Sei stato reindirizzato a</h4>
+                    <p style="font-family: monospace; font-size: 11px; word-break: break-all;">
+                        https://login.microsoftonline.com/acmecorp.onmicrosoft.com/oauth2/v2.0/authorize?client_id=a1b2c3d4...
+                    </p>
+                </div>
+
+                <form onsubmit="authenticateMicrosoft(event)">
+                    <div class="form-group">
+                        <label>Indirizzo email</label>
+                        <input type="email" id="ms-email" value="mario.rossi@acmecorp.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" value="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Accedi</button>
+                </form>
+
+                <div class="info-box" style="margin-top: 30px;">
+                    <h4>🔐 Cosa fa Microsoft Entra ID?</h4>
+                    <p>
+                        1. Verifica le credenziali contro Active Directory<br>
+                        2. Controlla le policy di sicurezza (MFA, Conditional Access)<br>
+                        3. Genera un <strong>authorization code</strong><br>
+                        4. Ti reindirizza all'app con questo codice
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 3: Callback Processing -->
+        <div id="screen3" class="screen">
+            <h2 style="text-align: center; color: #0078d4; margin-bottom: 30px;">
+                ⚙️ Elaborazione Callback
+            </h2>
+
+            <div class="info-box">
+                <h4>📍 Microsoft ti ha reindirizzato a:</h4>
+                <p style="font-family: monospace; font-size: 11px; word-break: break-all;">
+                    https://portal.acmecorp.com/auth/callback?code=0.AXoA...TkwNQ&state=abc123xyz
+                </p>
+            </div>
+
+            <div class="flow-step">
+                <strong>1. Estrazione dell'authorization code</strong>
+                L'app legge il parametro <code>code</code> dall'URL
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">// callback.js - Pagina di callback</div>
+                <div class="code-content">
+<span class="comment">// Estrae il codice dall'URL</span>
+<span class="keyword">const</span> urlParams = <span class="keyword">new</span> <span class="function">URLSearchParams</span>(window.location.search);
+<span class="keyword">const</span> code = urlParams.<span class="function">get</span>(<span class="string">'code'</span>);
+<span class="keyword">const</span> state = urlParams.<span class="function">get</span>(<span class="string">'state'</span>);
+
+console.<span class="function">log</span>(<span class="string">'Authorization Code ricevuto:'</span>, code);
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <strong>2. Scambio code per access token (lato server!)</strong>
+                Il server fa una chiamata POST a Microsoft per ottenere il token
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">// server.js - Scambio del codice</div>
+                <div class="code-content">
+<span class="comment">// Chiamata al token endpoint di Microsoft</span>
+<span class="keyword">const</span> tokenResponse = <span class="keyword">await</span> <span class="function">fetch</span>(
+  <span class="string">'https://login.microsoftonline.com/acmecorp.onmicrosoft.com/oauth2/v2.0/token'</span>,
+  {
+    <span class="property">method</span>: <span class="string">'POST'</span>,
+    <span class="property">headers</span>: { <span class="string">'Content-Type'</span>: <span class="string">'application/x-www-form-urlencoded'</span> },
+    <span class="property">body</span>: <span class="keyword">new</span> <span class="function">URLSearchParams</span>({
+      <span class="property">client_id</span>: <span class="string">'a1b2c3d4-e5f6-7890-abcd-ef1234567890'</span>,
+      <span class="property">client_secret</span>: <span class="string">'YOUR_CLIENT_SECRET'</span>,
+      <span class="property">code</span>: code,
+      <span class="property">redirect_uri</span>: <span class="string">'https://portal.acmecorp.com/auth/callback'</span>,
+      <span class="property">grant_type</span>: <span class="string">'authorization_code'</span>
+    })
+  }
+);
+
+<span class="keyword">const</span> tokens = <span class="keyword">await</span> tokenResponse.<span class="function">json</span>();
+<span class="comment">// tokens = { access_token, id_token, refresh_token, expires_in }</span>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <strong>3. Validazione e decodifica dell'ID token</strong>
+                Verifica la firma JWT e estrae le informazioni utente
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">// Decodifica del JWT ID Token</div>
+                <div class="code-content">
+<span class="keyword">const</span> jwt = <span class="keyword">require</span>(<span class="string">'jsonwebtoken'</span>);
+
+<span class="comment">// Verifica e decodifica l'ID token</span>
+<span class="keyword">const</span> decoded = jwt.<span class="function">verify</span>(tokens.id_token, publicKey, {
+  <span class="property">algorithms</span>: [<span class="string">'RS256'</span>],
+  <span class="property">issuer</span>: <span class="string">'https://login.microsoftonline.com/.../v2.0'</span>
+});
+
+console.<span class="function">log</span>(decoded);
+<span class="comment">// {
+//   aud: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+//   iss: "https://login.microsoftonline.com/.../v2.0",
+//   iat: 1704967200,
+//   exp: 1704970800,
+//   name: "Mario Rossi",
+//   preferred_username: "mario.rossi@acmecorp.com",
+//   oid: "00000000-0000-0000-0000-000000000000",
+//   tid: "tenant-id"
+// }</span>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <strong>4. Creazione sessione applicazione</strong>
+                Crea una sessione locale e salva i token in modo sicuro
+            </div>
+
+            <div class="code-container">
+                <div class="code-header">// Creazione sessione</div>
+                <div class="code-content">
+<span class="comment">// Crea sessione nel database</span>
+<span class="keyword">const</span> session = <span class="keyword">await</span> db.sessions.<span class="function">create</span>({
+  <span class="property">userId</span>: decoded.oid,
+  <span class="property">email</span>: decoded.preferred_username,
+  <span class="property">name</span>: decoded.name,
+  <span class="property">accessToken</span>: tokens.access_token,
+  <span class="property">refreshToken</span>: tokens.refresh_token,
+  <span class="property">expiresAt</span>: <span class="keyword">new</span> <span class="function">Date</span>(decoded.exp * <span class="string">1000</span>)
+});
+
+<span class="comment">// Imposta cookie di sessione</span>
+res.<span class="function">cookie</span>(<span class="string">'session_id'</span>, session.id, {
+  <span class="property">httpOnly</span>: <span class="keyword">true</span>,
+  <span class="property">secure</span>: <span class="keyword">true</span>,
+  <span class="property">sameSite</span>: <span class="string">'lax'</span>,
+  <span class="property">maxAge</span>: <span class="string">3600000</span>
+});
+
+<span class="comment">// Reindirizza alla dashboard</span>
+res.<span class="function">redirect</span>(<span class="string">'/dashboard'</span>);
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn btn-primary" onclick="completeAuth()" style="max-width: 300px;">
+                    ✅ Completa Autenticazione
+                </button>
+            </div>
+        </div>
+
+        <!-- Screen 4: Dashboard -->
+        <div id="screen4" class="screen dashboard">
+            <div class="dashboard-header">
+                <div class="user-info">
+                    <div class="user-avatar">MR</div>
+                    <div>
+                        <h3 style="margin-bottom: 4px;">Mario Rossi</h3>
+                        <p style="opacity: 0.9; font-size: 14px;">mario.rossi@acmecorp.com</p>
+                    </div>
+                </div>
+            </div>
+
+            <h2 style="padding: 0 40px; color: #323130; margin-bottom: 20px;">
+                Le tue applicazioni
+            </h2>
+
+            <div class="apps-grid">
+                <div class="app-card" onclick="accessApp('Outlook')">
+                    <div class="app-card-icon" style="background: #0078d4;">📧</div>
+                    <h3>Outlook</h3>
+                    <p>Email aziendale e calendario</p>
+                </div>
+
+                <div class="app-card" onclick="accessApp('SharePoint')">
+                    <div class="app-card-icon" style="background: #036c70;">📂</div>
+                    <h3>SharePoint</h3>
+                    <p>Documenti e collaborazione</p>
+                </div>
+
+                <div class="app-card" onclick="accessApp('Teams')">
+                    <div class="app-card-icon" style="background: #464eb8;">💬</div>
+                    <h3>Microsoft Teams</h3>
+                    <p>Chat e videoconferenze</p>
+                </div>
+
+                <div class="app-card" onclick="accessApp('Power BI')">
+                    <div class="app-card-icon" style="background: #f2c811;">📊</div>
+                    <h3>Power BI</h3>
+                    <p>Dashboard e analytics</p>
+                </div>
+
+                <div class="app-card" onclick="accessApp('Dynamics')">
+                    <div class="app-card-icon" style="background: #002050;">🏪</div>
+                    <h3>Dynamics 365</h3>
+                    <p>CRM aziendale</p>
+                </div>
+
+                <div class="app-card" onclick="accessApp('Portal HR')">
+                    <div class="app-card-icon" style="background: #7719aa;">👥</div>
+                    <h3>Portal HR</h3>
+                    <p>Risorse umane</p>
+                </div>
+            </div>
+
+            <div class="tech-details">
+                <div class="tech-section">
+                    <h3>🔑 Come funziona l'accesso alle altre app?</h3>
+                    
+                    <div class="flow-step">
+                        <strong>Con Access Token</strong>
+                        Ogni app Microsoft accetta lo stesso access token ottenuto da Entra ID. Non serve re-autenticarsi!
+                        <div class="code-container" style="margin-top: 12px;">
+                            <div class="code-content" style="font-size: 12px;">
+<span class="comment">// Chiamata API a un'altra app Microsoft</span>
+<span class="keyword">const</span> response = <span class="keyword">await</span> <span class="function">fetch</span>(<span class="string">'https://graph.microsoft.com/v1.0/me'</span>, {
+  <span class="property">headers</span>: {
+    <span class="string">'Authorization'</span>: <span class="string">`Bearer ${accessToken}`</span>
+  }
+});
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flow-step">
+                        <strong>Con Single Sign-On (SSO)</strong>
+                        Il browser mantiene cookie di sessione su login.microsoftonline.com. Se accedi a un'altra app Microsoft, vieni autenticato automaticamente senza inserire la password!
+                    </div>
+
+                    <div class="token-display">
+                        <strong>🎫 Access Token (esempio):</strong><br>
+                        eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6Ik1yNS1BVWliZk...
+                        <br><br>
+                        <strong>Valido per:</strong> 1 ora<br>
+                        <strong>Scopes:</strong> openid, profile, email, User.Read<br>
+                        <strong>Refresh disponibile:</strong> Sì (valido 90 giorni)
+                    </div>
+                </div>
+
+                <div class="tech-section">
+                    <h3>🔄 Gestione Refresh Token</h3>
+                    <div class="code-container">
+                        <div class="code-header">// Quando l'access token scade</div>
+                        <div class="code-content">
+<span class="keyword">async function</span> <span class="function">refreshAccessToken</span>() {
+  <span class="keyword">const</span> response = <span class="keyword">await</span> <span class="function">fetch</span>(
+    <span class="string">'https://login.microsoftonline.com/.../oauth2/v2.0/token'</span>,
+    {
+      <span class="property">method</span>: <span class="string">'POST'</span>,
+      <span class="property">body</span>: <span class="keyword">new</span> <span class="function">URLSearchParams</span>({
+        <span class="property">client_id</span>: CLIENT_ID,
+        <span class="property">grant_type</span>: <span class="string">'refresh_token'</span>,
+        <span class="property">refresh_token</span>: storedRefreshToken
+      })
+    }
+  );
+  
+  <span class="keyword">const</span> newTokens = <span class="keyword">await</span> response.<span class="function">json</span>();
+  <span class="comment">// Nuovo access_token ottenuto senza chiedere password!</span>
+  <span class="keyword">return</span> newTokens.access_token;
+}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentScreen = 1;
+
+        function updateSteps(screen) {
+            for (let i = 1; i <= 4; i++) {
+                const step = document.getElementById(`step${i}`);
+                step.classList.remove('active', 'completed');
+                
+                if (i < screen) {
+                    step.classList.add('completed');
+                } else if (i === screen) {
+                    step.classList.add('active');
+                }
+            }
+        }
+
+        function showScreen(screenNum) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen${screenNum}`).classList.add('active');
+            currentScreen = screenNum;
+            updateSteps(screenNum);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function initiateSSO() {
+            console.log('🔄 Reindirizzamento a Microsoft Entra ID...');
+            console.log('📍 URL:', 'https://login.microsoftonline.com/acmecorp.onmicrosoft.com/oauth2/v2.0/authorize?...');
+            setTimeout(() => showScreen(2), 500);
+        }
+
+        function authenticateMicrosoft(event) {
+            event.preventDefault();
+            console.log('✅ Autenticazione Microsoft completata');
+            console.log('🎫 Authorization code generato');
+            console.log('↩️ Reindirizzamento al callback...');
+            setTimeout(() => showScreen(3), 1000);
+        }
+
+        function completeAuth() {
+            console.log('🎉 Sessione creata con successo');
+            console.log('💾 Token salvati in modo sicuro');
+            console.log('🚀 Accesso alla dashboard');
+            setTimeout(() => showScreen(4), 500);
+        }
+
+        function accessApp(appName) {
+            console.log(`🚀 Accesso a ${appName}`);
+            console.log('🎫 Utilizzo access token esistente');
+            alert(`✅ Accesso a ${appName} completato!\n\nGrazie all'SSO, non è stata richiesta una nuova autenticazione.\n\nL'access token è stato utilizzato per verificare la tua identità.`);
+        }
+    </script>
+</body>
+</html>
