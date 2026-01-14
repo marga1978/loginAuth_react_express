@@ -2,6 +2,21 @@
 
 Esempio completo di Single Sign-On usando Microsoft Azure AD, React e Express.
 
+## Versioni disponibili
+
+Questo progetto include DUE implementazioni:
+
+1. **STATEFUL (Sessioni)** - File originali
+   - Usa `express-session` per salvare lo stato sul server
+   - Ideale per applicazioni monolitiche
+   - File: `server/index.js` + `client/src/App.js`
+
+2. **STATELESS (JWT)** - Versione alternativa
+   - Usa JSON Web Token senza stato sul server
+   - Ideale per microservizi e architetture distribuite
+   - File: `server/index-stateless.js` + `client/src/App-stateless.js`
+   - **[📖 Guida completa STATELESS](STATELESS-GUIDE.md)**
+
 ## Indice
 1. [Come funziona](#come-funziona)
 2. [Setup Azure](#setup-azure)
