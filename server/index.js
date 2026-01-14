@@ -64,12 +64,20 @@ app.get('/auth/login', (req, res) => {
   authUrl.searchParams.append('scope', msalConfig.scope);
   authUrl.searchParams.append('response_mode', 'query');
 
-  // State per prevenire CSRF attacks (opzionale ma raccomandato)
-  const state = Math.random().toString(36).substring(7);
+  // 🔥 NUOVO: Salva il returnUrl passato dal client
+  const returnUrl = req.query.returnUrl || '/dashboard';
+
+  // State per prevenire CSRF attacks + include returnUrl
+  const state = JSON.stringify({
+    random: Math.random().toString(36).substring(7),
+    returnUrl: returnUrl
+  });
+
   req.session.oauthState = state;
   authUrl.searchParams.append('state', state);
 
   console.log('🔐 Redirect to Microsoft login:', authUrl.toString());
+  console.log('📍 Return URL:', returnUrl);
 
   // Invia l'URL al frontend
   res.json({ authUrl: authUrl.toString() });
@@ -85,6 +93,15 @@ app.get('/auth/callback', async (req, res) => {
   if (error) {
     console.error('❌ Errore da Microsoft:', error, error_description);
     return res.redirect(`${process.env.CLIENT_URL}/login?error=${error}`);
+  }
+
+  // 🔥 NUOVO: Estrai returnUrl dallo state
+  let returnUrl = '/dashboard'; // default
+  try {
+    const stateObj = JSON.parse(state);
+    returnUrl = stateObj.returnUrl || '/dashboard';
+  } catch (e) {
+    console.warn('⚠️ State non è JSON valido, uso default');
   }
 
   // Verifica state per sicurezza CSRF (opzionale)
@@ -148,8 +165,9 @@ app.get('/auth/callback', async (req, res) => {
 
     console.log('✅ Utente autenticato e salvato in sessione');
 
-    // Redirect al frontend con successo
-    res.redirect(`${process.env.CLIENT_URL}/dashboard`);
+    // 🔥 NUOVO: Redirect al returnUrl specificato
+    console.log('📍 Redirect a:', returnUrl);
+    res.redirect(`${process.env.CLIENT_URL}${returnUrl}`);
 
   } catch (error) {
     console.error('❌ Errore durante autenticazione:', error.response?.data || error.message);

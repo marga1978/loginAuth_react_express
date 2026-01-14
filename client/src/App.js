@@ -12,6 +12,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import axios from 'axios';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import ProfilePage from './pages/ProfilePage';
 import './App.css';
 
 // STEP 1: Crea Context per autenticazione globale
@@ -51,10 +52,15 @@ function App() {
   };
 
   // STEP 4: Funzione per effettuare login
-  const login = async () => {
+  const login = async (returnUrl) => {
     try {
+      // 🔥 NUOVO: Passa returnUrl al backend (default: pagina corrente)
+      const targetUrl = returnUrl || window.location.pathname;
+
       // Chiama il backend per ottenere l'URL di Microsoft
-      const response = await axios.get('http://localhost:5000/auth/login');
+      const response = await axios.get('http://localhost:5000/auth/login', {
+        params: { returnUrl: targetUrl }
+      });
 
       // Reindirizza l'utente a Microsoft
       window.location.href = response.data.authUrl;
@@ -84,7 +90,14 @@ function App() {
       return <div className="loading">Caricamento...</div>;
     }
 
-    return authState.isAuthenticated ? children : <Navigate to="/login" />;
+    // 🔥 NUOVO: Se non autenticato, salva la pagina corrente e reindirizza al login
+    if (!authState.isAuthenticated) {
+      // Salva dove l'utente voleva andare
+      const returnUrl = window.location.pathname;
+      return <Navigate to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`} />;
+    }
+
+    return children;
   };
 
   if (authState.loading) {
@@ -113,6 +126,16 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Profile page protetta - per testare il redirect dinamico */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
                 </ProtectedRoute>
               }
             />

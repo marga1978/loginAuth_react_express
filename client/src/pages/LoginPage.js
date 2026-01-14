@@ -12,6 +12,9 @@ function LoginPage() {
   const { login } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
 
+  // 🔥 NUOVO: Leggi returnUrl dalla query string
+  const returnUrl = searchParams.get('returnUrl');
+
   // Gestisci errori dal callback
   useEffect(() => {
     const error = searchParams.get('error');
@@ -20,6 +23,11 @@ function LoginPage() {
     }
   }, [searchParams]);
 
+  // 🔥 NUOVO: Funzione per gestire il login con returnUrl
+  const handleLogin = () => {
+    login(returnUrl);
+  };
+
   return (
     <div className="login-page">
       <div className="login-card">
@@ -27,7 +35,7 @@ function LoginPage() {
         <p>Effettua il login con il tuo account Microsoft</p>
 
         {/* Bottone per login Microsoft */}
-        <button onClick={login} className="microsoft-btn">
+        <button onClick={handleLogin} className="microsoft-btn">
           <svg viewBox="0 0 23 23" width="21" height="21">
             <path fill="#f25022" d="M0 0h11v11H0z"/>
             <path fill="#00a4ef" d="M12 0h11v11H12z"/>
